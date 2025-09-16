@@ -1,0 +1,63 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y openjdk-8-jdk
+        sudo apt-get install -y git zip unzip
+        
+    - name: Install Python dependencies
+      run: |
+        pip install buildozer
+        
+    - name: Build APK
+      run: |
+        buildozer android debug
+        
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: microsearch-driver-apk
+        path: bin/*.apk
+        retention-days: 30
+        
+    - name: Create release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: bin/*.apk
+        name: Microsearch Driver Capture v1.0
+        body: |
+          Android APK for Microsearch Driver Capture
+          
+          Compatible with Android 5.0+ (API 21+)
+          
+          Features:
+          - Offline data capture
+          - WiFi/Ethernet sync
+          - MySQL database integration
+          - Dropdown fields support
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

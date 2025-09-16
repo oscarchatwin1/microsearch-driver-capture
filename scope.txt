@@ -1,0 +1,252 @@
+Project: Microsearch Driver Capture (Android, Python/Kivy, Direct MySQL)
+0) Context
+
+Drivers currently fill a paper sheet with rows like:
+
+Description, Size (kg), Use By (date), Pack Code/Comms, Bird Temp (°C), Customer, Retailer, Supplier (usually Flixton), Code (usually GB S011), Sample Number, Price (£), Van Temp (°C).
+Goal: replicate this on a phone with offline capture and Wi-Fi-gated upload to Microsearch’s on-site MySQL.
+
+1) High-level
+
+Platform: Android 10+ (enterprise / managed devices).
+
+Language/Framework: Python 3 + Kivy (Buildozer for APK).
+
+Local storage: SQLite (offline-first).
+
+Sync target: MySQL 8 (LAN host). No API layer.
+
+Trigger: Sync only when connected to allowed SSID(s) (e.g., MicrosearchOps, MicrosearchGuest).
+
+2) Core Requirements
+
+Offline capture
+
+Simple form matching the paper columns (see §5).
+
+Save instantly to SQLite with sync_status='pending'.
+
+Auto-fill Supplier="Flixton", Code="GB S011"; editable.
+
+Per-day auto-increment Sample Number (overridable, prevent device-local duplicates per day).
+
+Direct MySQL sync
+
+When SSID ∈ allowlist → connect to MySQL using PyMySQL and UPSERT pending rows.
+
+Mark synced rows as synced; on exception mark error with message.
+
+Idempotency via client-generated UUID id (primary key).
+
+Wi-Fi gating
+
+Read current SSID via pyjnius (android.net.wifi.WifiManager).
+
+“Sync now” enabled only on allowed SSIDs; otherwise disabled with clear reason.
+
+Basic validation
+
+Temperature fields: −5.0 … 20.0 °C.
+
+Price ≥ 0; Size ≥ 0.
+
+Use-by date: today … +60 days.
+
+Required: Description, Retailer, Sample Number.
+
+Minimal, fast UI
+
+Three screens: New Entry, Today/Queue, Sync.
+
+Big buttons/inputs, works one-handed on 5–7″ screens.
+
+3) Data Model (shared columns)
+id                UUID (client-generated, PK)
+description       TEXT
+size_kg           DECIMAL(6,3)
+use_by_date       DATE   (YYYY-MM-DD)
+pack_code         TEXT
+bird_temp_c       DECIMAL(4,1)
+customer          TEXT
+retailer          TEXT
+supplier          TEXT   (default "Flixton")
+code              TEXT   (default "GB S011")
+sample_number     INT
+price_gbp         DECIMAL(7,2)
+van_temp_c        DECIMAL(4,1)
+created_at_local  DATETIME (YYYY-MM-DD HH:MM:SS)
+device_id         VARCHAR(64)
+driver_id         VARCHAR(64)
+
+SQLite (mobile) extra columns
+sync_status  TEXT  -- pending | synced | error
+error_msg    TEXT  -- last error (nullable)
+
+4) Schemas
+MySQL (on site)
+CREATE TABLE IF NOT EXISTS samples (
+  id CHAR(36) PRIMARY KEY,
+  description TEXT NOT NULL,
+  size_kg DECIMAL(6,3),
+  use_by_date DATE,
+  pack_code TEXT,
+  bird_temp_c DECIMAL(4,1),
+  customer TEXT,
+  retailer TEXT,
+  supplier TEXT,
+  code TEXT,
+  sample_number INT,
+  price_gbp DECIMAL(7,2),
+  van_temp_c DECIMAL(4,1),
+  created_at_local DATETIME,
+  device_id VARCHAR(64),
+  driver_id VARCHAR(64),
+  received_at_utc TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+SQLite (mobile)
+
+CREATE TABLE IF NOT EXISTS samples (
+  id TEXT PRIMARY KEY,
+  description TEXT NOT NULL,
+  size_kg REAL,
+  use_by_date TEXT,
+  pack_code TEXT,
+  bird_temp_c REAL,
+  customer TEXT,
+  retailer TEXT,
+  supplier TEXT,
+  code TEXT,
+  sample_number INTEGER,
+  price_gbp REAL,
+  van_temp_c REAL,
+  created_at_local TEXT,
+  device_id TEXT,
+  driver_id TEXT,
+  sync_status TEXT,
+  error_msg TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_samples_status ON samples(sync_status);
+CREATE INDEX IF NOT EXISTS idx_samples_created ON samples(created_at_local);
+
+5) Screens & UX
+A) New Entry
+
+Inputs: description (dropdown + free text), size_kg, use_by_date (picker), pack_code, bird_temp_c, customer, retailer (dropdown), supplier, code, sample_number, price_gbp, van_temp_c.
+
+Buttons: Save, Save & New, Back.
+
+On Save → validate → insert row with sync_status='pending'.
+
+B) Today/Queue
+
+Tabs or filters: Pending / Synced / Error.
+
+Show list with columns: description, retailer, sample_number, created time, status icon.
+
+Tap row → edit if pending; for error, show error_msg.
+
+“Delete” only for pending (optional).
+
+C) Sync
+
+Shows Current SSID, last sync time, counts: Pending/Synced/Error.
+
+Sync now (enabled only if SSID allowed).
+
+After sync, toast “Synced N” or “Error: …”.
+
+6) Sync Logic (pseudocode)
+
+def current_ssid():
+    # pyjnius -> WifiManager.getConnectionInfo().getSSID()
+
+def fetch_pending(limit=200):
+    return list_of_rows
+
+def upsert_mysql(rows):
+    conn = pymysql.connect(host, user, password, db, port, autocommit=False)
+    sql = """
+    INSERT INTO samples (id, description, size_kg, use_by_date, pack_code, bird_temp_c,
+      customer, retailer, supplier, code, sample_number, price_gbp, van_temp_c,
+      created_at_local, device_id, driver_id)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    ON DUPLICATE KEY UPDATE description=VALUES(description)
+    """
+    for r in rows: cursor.execute(sql, tuple_from_row(r))
+    conn.commit()
+
+def sync_now():
+    if current_ssid() not in CONFIG["allowed_ssids"]:
+        return "Wrong Wi-Fi"
+    rows = fetch_pending()
+    if not rows: return "Nothing to sync"
+    try:
+        upsert_mysql(rows)
+        mark_rows_synced(ids=[r["id"] for r in rows])
+        return f"Synced {len(rows)}"
+    except Exception as e:
+        mark_rows_error(rows, str(e))
+        return f"Error: {e}"
+When to trigger sync: app start, user taps Sync, connectivity/SSID change.
+
+7) Configuration
+
+config.json
+
+
+{
+  "allowed_ssids": ["MicrosearchOps", "MicrosearchGuest"],
+  "mysql": {
+    "host": "192.168.1.10",
+    "port": 3306,
+    "user": "mobile",
+    "password": "REDACTED",
+    "db": "microsearch"
+  },
+  "defaults": {
+    "supplier": "Flixton",
+    "code": "GB S011"
+  }
+}
+
+device_id can be a static string in config or generated on first run and stored.
+
+
+8) Build & Packaging
+
+Buildozer to produce signed APK.
+
+Include requirements: kivy, pymysql, uuid, jnius.
+
+Android permissions: ACCESS_WIFI_STATE, ACCESS_NETWORK_STATE, INTERNET.
+
+Target: Android API 29+.
+
+9) Acceptance Criteria
+
+Add 20 entries offline → app kill → reopen → all still present.
+
+On non-allowed SSID → Sync button disabled with message.
+
+On allowed SSID → pending rows upload; MySQL table shows matching rows; local rows flip to synced.
+
+Re-syncing same rows does not duplicate (UUID PK).
+
+Invalid input blocked by client validation (temps, dates, price).
+
+/mobile
+  main.py          # Kivy app (screens, navigation)
+  storage.py       # SQLite init + CRUD + validation + auto sample_number
+  syncer.py        # SSID check + MySQL upsert + status updates
+  config.json      # SSIDs + MySQL creds + defaults
+  buildozer.spec   # Android build config
+
+  11) Risks & Simple Mitigations
+
+Direct DB creds on device: use limited MySQL user with INSERT/SELECT only on samples.
+
+SSID spoofing: acceptable for v1; can add gateway IP allowlist later.
+
+Android background limits: do sync in foreground on user action for v1.
+

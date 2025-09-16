@@ -1,0 +1,17 @@
+{
+  "allowed_ssids": ["Microsearch_Staff", "Microsearch_Guest"],
+  "allow_ethernet": true,
+  "mysql": {
+    "host": "192.168.30.253",
+    "port": 3306,
+    "user": "administrator",
+    "password": "B!Deh8d10",
+    "db": "microsearch"
+  },
+  "defaults": {
+    "supplier": "Flixton",
+    "code": "GB S011"
+  },
+  "device_id": "DEVICE_001",
+  "driver_id": "DRIVER_001"
+}

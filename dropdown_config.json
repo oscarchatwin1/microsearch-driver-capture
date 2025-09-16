@@ -1,0 +1,55 @@
+{
+  "dropdown_fields": {
+    "description": {
+      "enabled": true,
+      "source": "database",
+      "table": "sample_descriptions",
+      "value_field": "description",
+      "display_field": "description",
+      "order_by": "description ASC",
+      "allow_custom": true,
+      "placeholder": "Select or type description..."
+    },
+    "retailer": {
+      "enabled": true,
+      "source": "database",
+      "table": "retailers",
+      "value_field": "name",
+      "display_field": "name",
+      "order_by": "name ASC",
+      "allow_custom": true,
+      "placeholder": "Select or type retailer..."
+    },
+    "customer": {
+      "enabled": true,
+      "source": "database",
+      "table": "customers",
+      "value_field": "name",
+      "display_field": "name",
+      "order_by": "name ASC",
+      "allow_custom": true,
+      "placeholder": "Select or type customer..."
+    },
+    "supplier": {
+      "enabled": false,
+      "source": "static",
+      "options": ["Flixton", "Other"],
+      "allow_custom": true,
+      "placeholder": "Select or type supplier..."
+    },
+    "pack_code": {
+      "enabled": true,
+      "source": "database",
+      "table": "pack_codes",
+      "value_field": "code",
+      "display_field": "code",
+      "order_by": "code ASC",
+      "allow_custom": true,
+      "placeholder": "Select or type pack code..."
+    }
+  },
+  "static_options": {
+    "supplier": ["Flixton", "Other"],
+    "code": ["GB S011", "GB S012", "GB S013"]
+  }
+}
