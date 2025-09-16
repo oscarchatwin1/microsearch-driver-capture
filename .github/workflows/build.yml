@@ -59,23 +59,8 @@ jobs:
         path: bin/*.apk
         retention-days: 30
         
-    - name: Create release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: bin/*.apk
-        name: Microsearch Driver Capture v1.0
-        body: |
-          Android APK for Microsearch Driver Capture
-          
-          Compatible with Android 5.0+ (API 21+)
-          
-          Features:
-          - Offline data capture
-          - WiFi/Ethernet sync
-          - MySQL database integration
-          - Dropdown fields support
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create release (commented out - requires tag)
+      if: false
+      run: |
+        echo "Release creation disabled - APK available as artifact"
+        echo "To create releases, add a Git tag first"
