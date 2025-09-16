@@ -20,7 +20,7 @@ version = 1.0
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,pymysql,uuid,jnius,sqlite3
+requirements = python3,kivy,pymysql,jnius,sqlite3
 
 # (str) Supported orientation (landscape, portrait or all)
 orientation = portrait
@@ -65,6 +65,16 @@ android.skip_update = False
 # the default, you will be shown the license when first running
 # buildozer.
 android.accept_sdk_license = True
+
+# (bool) If True, then skip trying to update the Android NDK
+# This can be useful to avoid excess Internet downloads or save time
+# when an update is due and you just want to test/build your package
+android.skip_ndk_update = True
+
+# (bool) If True, then skip trying to update the Android SDK
+# This can be useful to avoid excess Internet downloads or save time
+# when an update is due and you just want to test/build your package
+android.skip_sdk_update = True
 
 # (str) The source dir where to put the app main.py
 # (str) The source dir where to put the app main.py
