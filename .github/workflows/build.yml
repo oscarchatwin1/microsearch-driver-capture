@@ -39,18 +39,30 @@ jobs:
         buildozer --version
         echo "Buildozer config:"
         cat buildozer.spec | head -20
+        echo "Python files:"
+        ls -la *.py
+        echo "Config files:"
+        ls -la *.json
         
     - name: Build APK
       run: |
+        echo "Starting buildozer build..."
         buildozer android debug
       continue-on-error: true
       
     - name: Check build results
       run: |
-        echo "Build directory contents:"
+        echo "=== Build Results ==="
+        echo "Current directory:"
+        pwd
+        echo "Directory contents:"
+        ls -la
+        echo "Bin directory contents:"
         ls -la bin/ || echo "No bin directory found"
-        echo "Buildozer log:"
-        tail -50 .buildozer/android/platform/build-*/logs/build.log || echo "No build log found"
+        echo "Buildozer directory contents:"
+        ls -la .buildozer/ || echo "No .buildozer directory found"
+        echo "Buildozer logs:"
+        find .buildozer -name "*.log" -exec echo "=== {} ===" \; -exec tail -20 {} \; || echo "No build logs found"
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
