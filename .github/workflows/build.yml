@@ -26,12 +26,15 @@ jobs:
         sudo apt-get install -y openjdk-8-jdk
         sudo apt-get install -y git zip unzip curl
         sudo apt-get install -y python3-pip python3-venv
+        sudo apt-get install -y build-essential libffi-dev libssl-dev
+        sudo apt-get install -y python3-dev python3-setuptools
         
     - name: Install Python dependencies
       run: |
         pip install --upgrade pip
         pip install buildozer cython
         pip install kivy[base] pyjnius plyer
+        pip install pymysql
         
     - name: Debug buildozer config
       run: |
@@ -43,6 +46,11 @@ jobs:
         ls -la *.py
         echo "Config files:"
         ls -la *.json
+        
+    - name: Clean previous builds
+      run: |
+        echo "Cleaning previous builds..."
+        rm -rf .buildozer bin/
         
     - name: Build APK
       run: |
