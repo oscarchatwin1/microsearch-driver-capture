@@ -1,6 +1,5 @@
 import json
 import sqlite3
-import pymysql
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
@@ -76,41 +75,24 @@ class DropdownManager:
             return self.get_cached_options(field_name) or []
         
         try:
-            # Connect to MySQL
-            connection = pymysql.connect(
-                host=mysql_config['host'],
-                port=mysql_config['port'],
-                user=mysql_config['user'],
-                password=mysql_config['password'],
-                database=mysql_config['db'],
-                charset='utf8mb4'
-            )
+            # For now, simulate database options
+            # In a real implementation, you would make HTTP requests to a web API
             
-            cursor = connection.cursor()
+            print(f"Would fetch database options for {field_name} from {mysql_config['host']}")
             
-            # Build query
-            table = field_config.get('table')
-            value_field = field_config.get('value_field', 'name')
-            display_field = field_config.get('display_field', value_field)
-            order_by = field_config.get('order_by', f'{display_field} ASC')
+            # Return cached options or empty list
+            cached_options = self.get_cached_options(field_name)
+            if cached_options:
+                return cached_options
             
-            query = f"""
-                SELECT DISTINCT {display_field} 
-                FROM {table} 
-                WHERE active = 1 
-                ORDER BY {order_by}
-            """
+            # Return some default options for testing
+            default_options = {
+                'description': ['Sample A', 'Sample B', 'Sample C'],
+                'retailer': ['Tesco', 'Sainsbury', 'Asda'],
+                'customer': ['Customer 1', 'Customer 2', 'Customer 3']
+            }
             
-            cursor.execute(query)
-            results = cursor.fetchall()
-            
-            options = [row[0] for row in results if row[0]]
-            
-            # Cache the results for offline use
-            self.cache_options(field_name, options)
-            
-            connection.close()
-            return options
+            return default_options.get(field_name, [])
             
         except Exception as e:
             print(f"Error fetching database options for {field_name}: {e}")
